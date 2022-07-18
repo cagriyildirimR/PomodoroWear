@@ -9,9 +9,13 @@ import android.os.CountDownTimer
 import android.os.SystemClock
 import android.util.Log
 import android.widget.TextView
+import com.google.android.gms.wearable.Wearable
+import kotlinx.coroutines.*
+import kotlinx.coroutines.tasks.await
 import pomodoroapp.cagriyildirim.com.github.pomodorowear.broadcastReceivers.NotificationBroadcast
 import pomodoroapp.cagriyildirim.com.github.pomodorowear.databinding.ActivityMainBinding
 import java.text.SimpleDateFormat
+import java.util.*
 
 const val SECOND = 1000L
 const val MINUTE = 60_000L
@@ -21,6 +25,10 @@ class MainActivity : Activity() {
 
     private lateinit var binding: ActivityMainBinding
     lateinit var timer: CountDownTimer
+
+    private val scope = CoroutineScope(Dispatchers.Main)
+    private val nodeClient by lazy { Wearable.getNodeClient(this) }
+    private val messageClient by lazy { Wearable.getMessageClient(this) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -61,6 +69,7 @@ class MainActivity : Activity() {
                     },
                     doOnFinish = {
                         time = ONE_POMODORO
+                        startButton.isSelected = false // resetting button image to Play icon
                     })
 
                 startButton.isSelected = true
@@ -73,6 +82,11 @@ class MainActivity : Activity() {
                     pendingBroadcastIntent
                 )
             }
+        }
+
+        binding.testing.setOnClickListener {
+            Log.i(TESTING_TAG, "Startin to send request to Phone to start BasicService")
+            startServiceInPhone()
         }
     }
 
@@ -91,16 +105,38 @@ class MainActivity : Activity() {
     ): CountDownTimer {
         return object : CountDownTimer(time, SECOND) {
             override fun onTick(millisUntilFinished: Long) {
-                textView.text = SimpleDateFormat("mm:ss").format(millisUntilFinished)
+                textView.text = SimpleDateFormat("mm:ss", Locale.ENGLISH).format(millisUntilFinished)
                 doOnTick(millisUntilFinished)
             }
 
             override fun onFinish() {
                 Log.i(TESTING_TAG, "timer onFinish method is called")
                 textView.text = "Fin"
-                textView.isSelected = false // resetting button image to Play icon
                 doOnFinish()
             }
         }
+    }
+
+    private fun startServiceInPhone() {
+        scope.launch {
+            try {
+                val nodes = nodeClient.connectedNodes.await()
+                nodes.map { node ->
+                    async {
+                        messageClient.sendMessage(node.id, TEST_LOG_PATH, "Hello".toByteArray()).await()
+                    }
+                }.awaitAll()
+
+                Log.i(TESTING_TAG, "Service start Request send successfully")
+            } catch (e: CancellationException) {
+                throw  e
+            } catch (e: Exception) {
+                Log.i(TESTING_TAG, "Service start failed with exception: $e")
+            }
+        }
+    }
+
+    companion object {
+        private const val TEST_LOG_PATH = "/test-log"
     }
 }
