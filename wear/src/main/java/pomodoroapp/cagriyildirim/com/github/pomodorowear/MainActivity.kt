@@ -4,11 +4,15 @@ import android.app.Activity
 import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.os.CountDownTimer
 import android.os.SystemClock
 import android.util.Log
 import android.widget.TextView
+import com.google.android.gms.tasks.Tasks
+import com.google.android.gms.wearable.CapabilityClient
+import com.google.android.gms.wearable.CapabilityInfo
 import com.google.android.gms.wearable.Wearable
 import kotlinx.coroutines.*
 import kotlinx.coroutines.tasks.await
@@ -21,7 +25,7 @@ const val SECOND = 1000L
 const val MINUTE = 60_000L
 const val ONE_POMODORO = 3000L //24 * MINUTE
 
-class MainActivity : Activity() {
+class MainActivity : Activity(), CapabilityClient.OnCapabilityChangedListener {
 
     private lateinit var binding: ActivityMainBinding
     lateinit var timer: CountDownTimer
@@ -29,6 +33,7 @@ class MainActivity : Activity() {
     private val scope = CoroutineScope(Dispatchers.Main)
     private val nodeClient by lazy { Wearable.getNodeClient(this) }
     private val messageClient by lazy { Wearable.getMessageClient(this) }
+    private val capabilityClient by lazy { Wearable.getCapabilityClient(this) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -105,7 +110,8 @@ class MainActivity : Activity() {
     ): CountDownTimer {
         return object : CountDownTimer(time, SECOND) {
             override fun onTick(millisUntilFinished: Long) {
-                textView.text = SimpleDateFormat("mm:ss", Locale.ENGLISH).format(millisUntilFinished)
+                textView.text =
+                    SimpleDateFormat("mm:ss", Locale.ENGLISH).format(millisUntilFinished)
                 doOnTick(millisUntilFinished)
             }
 
@@ -118,25 +124,53 @@ class MainActivity : Activity() {
     }
 
     private fun startServiceInPhone() {
+
         scope.launch {
+            val capabilityInfo: CapabilityInfo = capabilityClient.getCapability(
+                POMODORO_CAPABILITY, CapabilityClient.FILTER_REACHABLE
+            ).await()
+
             try {
-                val nodes = nodeClient.connectedNodes.await()
+                val nodes = nodeClient.connectedNodes.await() //
+                Log.i(
+                    TESTING_TAG,
+                    "Capability node has ${capabilityInfo.nodes} with nodes: $nodes"
+                )
                 nodes.map { node ->
                     async {
-                        messageClient.sendMessage(node.id, TEST_LOG_PATH, "Hello".toByteArray()).await()
+                        messageClient.sendMessage(node.id, TEST_LOG_PATH, "Hello".toByteArray())
+                            .await()
                     }
                 }.awaitAll()
 
                 Log.i(TESTING_TAG, "Service start Request send successfully")
             } catch (e: CancellationException) {
-                throw  e
+                throw e
             } catch (e: Exception) {
                 Log.i(TESTING_TAG, "Service start failed with exception: $e")
             }
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        capabilityClient.addListener(
+            this,
+            POMODORO_CAPABILITY
+        )
+    }
+
+    override fun onPause() {
+        super.onPause()
+        capabilityClient.removeListener(this)
+    }
+
     companion object {
         private const val TEST_LOG_PATH = "/test-log"
+        private const val POMODORO_CAPABILITY = "pomodoro_capable"
+    }
+
+    override fun onCapabilityChanged(capabilityInfo: CapabilityInfo) {
+        Log.i(TESTING_TAG, "A new node discovered $capabilityInfo")
     }
 }
