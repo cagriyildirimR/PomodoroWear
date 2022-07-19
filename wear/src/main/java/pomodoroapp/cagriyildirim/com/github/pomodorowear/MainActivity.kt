@@ -21,19 +21,15 @@ import pomodoroapp.cagriyildirim.com.github.pomodorowear.databinding.ActivityMai
 import java.text.SimpleDateFormat
 import java.util.*
 
-const val SECOND = 1000L
-const val MINUTE = 60_000L
-const val ONE_POMODORO = 3000L //24 * MINUTE
-
-class MainActivity : Activity(), CapabilityClient.OnCapabilityChangedListener {
+class MainActivity : Activity() {
 
     private lateinit var binding: ActivityMainBinding
     lateinit var timer: CountDownTimer
-
-    private val scope = CoroutineScope(Dispatchers.Main)
-    private val nodeClient by lazy { Wearable.getNodeClient(this) }
-    private val messageClient by lazy { Wearable.getMessageClient(this) }
-    private val capabilityClient by lazy { Wearable.getCapabilityClient(this) }
+//
+//    private val scope = CoroutineScope(Dispatchers.Main)
+//    private val nodeClient by lazy { Wearable.getNodeClient(this) }
+//    private val messageClient by lazy { Wearable.getMessageClient(this) }
+//    private val capabilityClient by lazy { Wearable.getCapabilityClient(this) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -47,6 +43,8 @@ class MainActivity : Activity(), CapabilityClient.OnCapabilityChangedListener {
 
             val broadcastIntent = Intent(this, NotificationBroadcast::class.java).apply {
                 putExtra(NOTIFICATION_MESSAGE_KEY, "I hope this works")
+                putExtra(START_TIME_KEY, Calendar.getInstance().timeInMillis)
+                putExtra(END_TIME_KEY, Calendar.getInstance().timeInMillis + time)
             }
             val pendingBroadcastIntent = PendingIntent.getBroadcast(
                 this,
@@ -88,11 +86,6 @@ class MainActivity : Activity(), CapabilityClient.OnCapabilityChangedListener {
                 )
             }
         }
-
-        binding.testing.setOnClickListener {
-            Log.i(TESTING_TAG, "Startin to send request to Phone to start BasicService")
-            startServiceInPhone()
-        }
     }
 
     /**
@@ -123,54 +116,12 @@ class MainActivity : Activity(), CapabilityClient.OnCapabilityChangedListener {
         }
     }
 
-    private fun startServiceInPhone() {
-
-        scope.launch {
-            val capabilityInfo: CapabilityInfo = capabilityClient.getCapability(
-                POMODORO_CAPABILITY, CapabilityClient.FILTER_REACHABLE
-            ).await()
-
-            try {
-                val nodes = nodeClient.connectedNodes.await() //
-                Log.i(
-                    TESTING_TAG,
-                    "Capability node has ${capabilityInfo.nodes} with nodes: $nodes"
-                )
-                nodes.map { node ->
-                    async {
-                        messageClient.sendMessage(node.id, TEST_LOG_PATH, "Hello".toByteArray())
-                            .await()
-                    }
-                }.awaitAll()
-
-                Log.i(TESTING_TAG, "Service start Request send successfully")
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                Log.i(TESTING_TAG, "Service start failed with exception: $e")
-            }
-        }
-    }
-
-    override fun onResume() {
-        super.onResume()
-        capabilityClient.addListener(
-            this,
-            POMODORO_CAPABILITY
-        )
-    }
-
-    override fun onPause() {
-        super.onPause()
-        capabilityClient.removeListener(this)
-    }
-
     companion object {
-        private const val TEST_LOG_PATH = "/test-log"
-        private const val POMODORO_CAPABILITY = "pomodoro_capable"
-    }
+        const val START_TIME_KEY = "stk"
+        const val END_TIME_KEY = "etk"
+        const val SECOND = 1000L
+        const val MINUTE = 60_000L
+        const val ONE_POMODORO = 3000L // 24 * MINUTE
 
-    override fun onCapabilityChanged(capabilityInfo: CapabilityInfo) {
-        Log.i(TESTING_TAG, "A new node discovered $capabilityInfo")
     }
 }
