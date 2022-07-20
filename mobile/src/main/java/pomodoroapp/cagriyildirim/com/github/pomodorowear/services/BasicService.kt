@@ -12,6 +12,7 @@ import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import pomodoroapp.cagriyildirim.com.github.pomodorowear.PomodoroMobileApp
 import pomodoroapp.cagriyildirim.com.github.pomodorowear.TESTING_TAG
+import pomodoroapp.cagriyildirim.com.github.pomodorowear.TEST_LOG_PATH
 import pomodoroapp.cagriyildirim.com.github.pomodorowear.database.PomodoroEntity
 
 class BasicService : WearableListenerService() {
@@ -38,9 +39,5 @@ class BasicService : WearableListenerService() {
     override fun onDestroy() {
         super.onDestroy()
         scope.cancel("onDestroy lifecycle event is called for BasicService")
-    }
-
-    companion object {
-        private const val TEST_LOG_PATH = "/test-log"
     }
 }
