@@ -25,11 +25,6 @@ class MainActivity : Activity() {
 
     private lateinit var binding: ActivityMainBinding
     lateinit var timer: CountDownTimer
-//
-//    private val scope = CoroutineScope(Dispatchers.Main)
-//    private val nodeClient by lazy { Wearable.getNodeClient(this) }
-//    private val messageClient by lazy { Wearable.getMessageClient(this) }
-//    private val capabilityClient by lazy { Wearable.getCapabilityClient(this) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -116,12 +111,4 @@ class MainActivity : Activity() {
         }
     }
 
-    companion object {
-        const val START_TIME_KEY = "stk"
-        const val END_TIME_KEY = "etk"
-        const val SECOND = 1000L
-        const val MINUTE = 60_000L
-        const val ONE_POMODORO = 3000L // 24 * MINUTE
-
-    }
 }

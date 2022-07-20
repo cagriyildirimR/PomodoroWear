@@ -1,5 +1,6 @@
 package pomodoroapp.cagriyildirim.com.github.pomodorowear.broadcastReceivers
 
+import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.BroadcastReceiver
@@ -16,7 +17,6 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import pomodoroapp.cagriyildirim.com.github.pomodorowear.*
 import pomodoroapp.cagriyildirim.com.github.pomodorowear.R
-import pomodoroapp.cagriyildirim.com.github.pomodorowear.broadcastReceivers.NotificationBroadcast.Companion.TEST_LOG_PATH
 
 class NotificationBroadcast : BroadcastReceiver() {
     private val scope = CoroutineScope(Dispatchers.Default)
@@ -31,8 +31,8 @@ class NotificationBroadcast : BroadcastReceiver() {
         messageClient = Wearable.getMessageClient(context)
         capabilityClient = Wearable.getCapabilityClient(context)
         val message = intent.getStringExtra(NOTIFICATION_MESSAGE_KEY) ?: "Hello World"
-        val startTime = intent.getLongExtra(MainActivity.START_TIME_KEY, 0L)
-        val endTime = intent.getLongExtra(MainActivity.END_TIME_KEY, 0L)
+        val startTime = intent.getLongExtra(START_TIME_KEY, 0L)
+        val endTime = intent.getLongExtra(END_TIME_KEY, 0L)
 
         createAndLaunchNotification(context, message)
         startServiceInPhone(startTime, endTime)
@@ -51,6 +51,7 @@ class NotificationBroadcast : BroadcastReceiver() {
 
         val mChannel = NotificationChannel(id, name, importance).apply {
             vibrationPattern = LongArray(10) { 400L }
+            lockscreenVisibility = Notification.VISIBILITY_PUBLIC
         }
         notificationManager.createNotificationChannel(mChannel)
 
@@ -71,7 +72,7 @@ class NotificationBroadcast : BroadcastReceiver() {
     private fun startServiceInPhone(startTime: Long, endTime: Long) {
         val data = PomodoroEntity(
             timeStart = startTime,
-            endTime = endTime,
+            timeEnd = endTime,
             taskType = 0
         )
         val message = Json.encodeToString(data)
@@ -93,7 +94,17 @@ class NotificationBroadcast : BroadcastReceiver() {
                             node.id,
                             TEST_LOG_PATH,
                             message.toByteArray()
-                        )
+                        ).apply {
+                            addOnSuccessListener {
+                                Log.i(TESTING_TAG, "Message successfully sent to phone")
+                            }
+                            addOnCompleteListener {
+                                Log.i(TESTING_TAG, "Message sent to phone completed")
+                            }
+                            addOnFailureListener {
+                                Log.i(TESTING_TAG, "Message failed with e:$it")
+                            }
+                        }
                             .await()
                     }
                 }.awaitAll()
@@ -105,10 +116,5 @@ class NotificationBroadcast : BroadcastReceiver() {
                 Log.i(TESTING_TAG, "Service start failed with exception: $e")
             }
         }
-    }
-
-    companion object {
-        private const val TEST_LOG_PATH = "/test-log"
-        private const val POMODORO_CAPABILITY = "pomodoro_capable"
     }
 }

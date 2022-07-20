@@ -11,4 +11,7 @@ interface PomodoroDao {
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     fun insert(e: PomodoroEntity)
+
+    @Query("SELECT * FROM pomodoro_table WHERE timeStart >= :time")
+    fun today(time: Long): Flow<List<PomodoroEntity>>
 }
